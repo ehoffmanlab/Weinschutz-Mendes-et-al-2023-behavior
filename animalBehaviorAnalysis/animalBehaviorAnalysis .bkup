@@ -1,0 +1,1041 @@
+classdef animalBehaviorAnalysis < handle
+    
+    
+    properties
+        save_location;
+        project_name;
+        startup_file;
+        grouping_file;
+        groupDataTable;
+        
+        viewpoint_file;
+        viewpointDataTable;
+        
+        timing_file;
+        timingDataTable;
+        
+        mergedDataFile;
+        mergedDataTable;
+        
+    end
+    
+    properties (Access = protected)
+        Data
+        status;
+        version = '0.1';
+    end
+    
+    methods
+        function obj = animalBehaviorAnalysis(varargin)
+            % ANIMALBEHAVIORANALYSIS -
+            %
+            % USAGE:
+            % obj.animalBehaviorAnalysis()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            %  'STARTUP_FILE', S
+            %
+            % OPTIONAL ARGUMENTS:
+            %   'PROJECT_NAME', P
+            %   'SAVE_LOCATION', L
+            % OUTPUTS:
+            %
+            % NOTES:
+            %  The analysis project name and save location are specified in
+            %  the command line. All other instructions for carrying out
+            %  the analysis are read from the start up file.
+            %
+            
+            obj.initArt(obj.version);
+            
+            obj.status = 'INTIALIZING...';
+            
+            %intialize some variables
+            validLogical = [0 1];
+            
+            %first check if the user specified a startup file
+            try
+                sap = inputParser; % Script Argument Parser
+                sap.KeepUnmatched = 1;
+                sap.addParameter('STARTUP_FILE',...
+                    [],...
+                    @(x) exist(x,'file'));
+                sap.parse(varargin{:});
+                sap_inputs = sap.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('animalBehaviorAnalysis');
+                return;
+            end
+            
+            %query user if unspecified
+            if isempty(sap_inputs.STARTUP_FILE)
+                [FILENAME, PATHNAME] = uigetfile(pwd,'Select Start-Up File');
+                sap_inputs.STARTUP_FILE = fullfile(PATHNAME,FILENAME);
+            end
+            
+            obj.status = 'PARSING START UP FILE...';
+            % now try to parse the startup
+            if exist(sap_inputs.STARTUP_FILE,'file')
+                %Read and parse startup file
+            else
+                fprintf('ERROR: Specified start-up file does not exist (CLASS CONSTRUCTION)\n');
+                return;
+            end
+            obj.status = 'START UP FILE PARSED!';
+            
+            obj.status = 'PARSING COMMAND LINE ARGS...';
+            % now parse any command line arguments
+            try
+                clap = inputParser; % Command Line Argument Parser
+                clap.KeepUnmatched = 1;
+                clap.addParameter('PROJECT_NAME', ...
+                    [],...
+                    @(x) ischar(x));
+                
+                clap.addParameter('SAVE_LOCATION', ...
+                    [],...
+                    @(x) ischar(x));
+                
+                clap.addParameter('GROUPING_FILE', ...
+                    [],...
+                    @(x) iscellstr(x) || isempty(x) || ischar(x));
+                clap.addParameter('VIEWPOINT_FILE', ...
+                    [],...
+                    @(x) iscellstr(x) || isempty(x) || ischar(x));
+                clap.addParameter('TIMING_FILE', ...
+                    [],...
+                    @(x) iscellstr(x) || isempty(x) || ischar(x));
+                
+                
+                
+                clap.parse(varargin{:});
+                clap_inputs = clap.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('animalBehaviorAnalysis');
+                return;
+            end
+            
+            %Check command line arguments
+            
+            %query user if unspecified
+            if isempty(clap_inputs.PROJECT_NAME)
+                clap_inputs.PROJECT_NAME = input('\nEnter Project Name:     ','s');
+            end
+            if isempty(clap_inputs.SAVE_LOCATION)
+                clap_inputs.SAVE_LOCATION = uigetdir(pwd,'Select Analysis Save Location');
+            end
+            
+            
+            %%%%%%% ADD ABILITY TO SELECT MULTIPLE FILES %%%%%
+            
+            if isempty(clap_inputs.GROUPING_FILE)
+                clap_inputs.GROUPING_FILE = uigetdir(pwd,'Select GROUPING file');
+            end
+            
+            if isempty(clap_inputs.VIEWPOINT_FILE)
+                clap_inputs.VIEWPOINT_FILE = uigetdir(pwd,'Select VIEWPOINT file');
+            end
+            
+            
+            if isempty(clap_inputs.TIMING_FILE)
+                clap_inputs.TIMING_FILE = uigetdir(pwd,'Select TIMING file');
+            end
+            
+%             if isempty(clap_inpuGENOTYPE_FILEts.SAVE_LOCATION)
+%                 clap_inputs.SAVE_LOCATION = uigetdir(pwd,'Select Analysis Save Location');
+%             end
+%             
+%             if isempty(clap_inputs.SAVE_LOCATION)
+%                 clap_inputs.SAVE_LOCATION = uigetdir(pwd,'Select Analysis Save Location');
+%             end
+            
+            %make sure save location exists
+            if exist(fullfile(clap_inputs.SAVE_LOCATION),'dir')
+                if ~exist(fullfile(clap_inputs.SAVE_LOCATION,clap_inputs.PROJECT_NAME),'dir')
+                    try
+                        mkdir(fullfile(clap_inputs.SAVE_LOCATION,clap_inputs.PROJECT_NAME));
+                    catch err
+                        obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                        return;
+                    end
+                end
+            else
+                obj.status = 'ERROR: Specified save location does not exist';
+                return;
+            end
+            obj.status = 'COMMAND LINE ARGS PARSED!';
+            
+            
+            
+            %assign inputs
+            obj.startup_file = sap_inputs.STARTUP_FILE;
+            
+            obj.save_location = fullfile(clap_inputs.SAVE_LOCATION,clap_inputs.PROJECT_NAME);
+            obj.project_name = clap_inputs.PROJECT_NAME;
+            obj.grouping_file = clap_inputs.GROUPING_FILE;
+            obj.viewpoint_file = clap_inputs.VIEWPOINT_FILE;
+            obj.timing_file = clap_inputs.TIMING_FILE;
+            
+            % Load files
+            obj.status = 'LOADING FILES...';
+            s = obj.loadFiles('FILE_SET','GROUPING');
+            if s.error
+                return;
+            end
+            
+            s = obj.loadFiles('FILE_SET','VIEWPOINT');
+            if s.error
+                return;
+            end
+            
+            s = obj.loadFiles('FILE_SET','TIMING');
+            if s.error
+                return;
+            end
+                        
+            obj.status = 'FILES LOADED!';
+            
+            m = obj.mergeDataFiles();
+            if m.error
+                return;
+                            
+            end
+            
+            
+            
+            obj.status = 'DONE!';
+            
+            %             str = input(prompt,'s')
+            %             folder_name = uigetdir(start_path)
+        end
+        function set.status(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            try
+                %check inputs
+                p = inputParser;
+                p.addRequired('value', ...
+                    @(x) ischar(x));
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                fprintf('\nSTATUS ERROR: %s\n\n', err.message);
+                return;
+            end
+            obj.status = upper(inputs.value);
+            fprintf('\nSTATUS: %s\n',obj.status);
+        end
+        function save(obj)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            if isempty(obj.save_location)
+                folder_name = uigetdir;
+            else
+                folder_name = obj.save_location;
+            end
+            vname=@(x) inputname(1);
+            save(fullfile(folder_name, [obj.project_name '.mat']),vname(obj));
+        end
+        function help(obj,varargin)% FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            p = inputParser;
+            %             p.addParameter('PATH2RAW', ...
+            %                 [],...
+            %                 @(x) ischar(x));
+            %            p.addParameter('SUBDIRS', ...
+            %                 1,...
+            %                 @(x) ismember(x,validLogical));
+            p.addOptional('rm', ...
+                [],...
+                @(x) ischar(x));
+            
+            p.parse(varargin{:});
+            inputs = p.Results;
+            
+            if isempty(inputs.rm)
+                
+                m = methods(obj);
+                s = superclasses(obj);
+                %find where root handle class is "located" in superclass array
+                %and eliminate the common handle methods from the list
+                ms = methods(s{find(cellfun(@(x) strcmp(x,'handle'),s))});
+                m = m(~ismember(m,ms));
+                
+                fprintf('Select a method for more help:\n');
+                for i = 1 : numel(m)
+                    fprintf('METHODS(%d):\t%s\n',i,m{i});
+                end
+                str = input('Selection:\n', 's');
+                str = str2double(str);
+                if ismember(str,1:numel(m))
+                    help_method = m{str};
+                else
+                    fprintf('sorry, not a valid selection\n');
+                    return;
+                end
+                
+            else
+                help_method = inputs.rm;
+            end
+            
+            help([class(obj) sprintf('.%s',help_method)]);
+            
+            
+            
+        end % function help
+        
+    end
+    
+    methods (Access = protected)
+        function parseStartupFile(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            validLogical = [0 1];
+            try
+                %check inputs
+                p = inputParser;
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('function');
+                return;
+            end
+            
+            
+            
+            
+            
+        end
+        function loadStruct = loadFiles(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            loadStruct = struct('error', 0);
+            
+            validFileSet = {'GROUPING' 'VIEWPOINT' 'TIMING'};
+            try
+                %check inputs
+                p = inputParser;
+                p.addParameter('FILE_SET', ...
+                    [],...
+                    @(x) ismember(x,validFileSet));
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('loadFiles');
+                return;
+            end
+            
+            switch inputs.FILE_SET
+                case 'GROUPING'
+                    loadFunc = 'loadGroupingFile';
+                    loadParam = obj.grouping_file;
+                    loadTable = 'groupDataTable';
+                case 'VIEWPOINT'
+                    loadFunc = 'loadViewpointFile';
+                    loadParam = obj.viewpoint_file;
+                    loadTable = 'viewpointDataTable';
+                case 'TIMING'
+                    loadFunc = 'loadTimingFile';
+                    loadParam = obj.timing_file;
+                    loadTable = 'timingDataTable';
+            end
+            
+            
+            if ischar(obj.grouping_file)  % definitely only 1 file
+                dStruct = obj.(loadFunc)('FILE',loadParam);
+                if dStruct.error
+                    loadStruct.error = 1;
+                    return;
+                end
+                obj.(loadTable) = dStruct.dataTable;
+            else
+                for gf = 1:numel(loadParam)
+                    dStruct = obj.(loadFunc)('FILE',loadParam{gf});
+                    if dStruct.error
+                        loadStruct.error = 1;
+                        return;
+                    end
+                    % Merge tables
+                    if gf == 1
+                         obj.(loadTable) = dStruct.dataTable;
+                    else
+                         obj.(loadTable) = join( obj.(loadTable),dStruct.dataTable,'Keys','animal_id');
+                    end
+                end
+            end
+             obj.(loadTable) = sortrows( obj.(loadTable));
+        end
+        function G = loadGroupingFile(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            
+            
+            G = struct('error', 0,...
+                        'dataTable', []);
+            
+            validLogical = [0 1];
+            try
+                %check inputs
+                p = inputParser;
+                p.addParameter('FILE', ...
+                    [],...
+                    @(x) ischar(x));
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('loadgroupingFile');
+                return;
+            end
+            
+            obj.status = sprintf('LOADING GROUPING FILE %s...',inputs.FILE);
+            try
+                fid = fopen(inputs.FILE,'r');
+            catch err
+               obj.status = sprintf('ERROR: grouping file could not be loaded: %s',inputs.FILE);
+               G.error = 1;
+               return;
+            end
+            
+            if fid == -1
+                obj.status = sprintf('ERROR: grouping file could not be loaded: %s',inputs.FILE);
+                G.error = 1;
+                return;
+            end
+            
+            obj.status = sprintf('PARSING GROUPING FILE %s...',inputs.FILE);
+            % read first line and parse by delimiter -- this gives the the
+            % levels of the group
+            line = fgetl(fid);
+            groupLevels = strsplit(line,'\t');
+            % there may be trailing tabs, so those have to be removed
+            % before counting columns
+            groupLevels(find(cellfun(@(x) isempty(x),groupLevels))) = [];
+            assignmentArray = cell(size(groupLevels,2),1);
+            allIDS = [];  % this will be used for some data validation below
+            
+            while(~feof(fid)) % DEV NOTE: maybe more elegant way of doing this?
+                
+                % read subsequent lines
+                line = fgetl(fid);
+                holdingLine = strsplit(line,'\t');
+                holdingLine(find(cellfun(@(x) isempty(x),holdingLine))) = [];
+                
+                try
+                    if str2num(holdingLine{1}) % if the line consist of numbers, treat these as animal ids
+                        newIds = cellfun(@(x) str2num(x),holdingLine);
+                        for i = 1 : numel(newIds)
+                            assignmentArray{i} = [assignmentArray{i}  newIds(i)];
+                            allIDS = [allIDS newIds(i)];
+                        end
+                        
+                    else % if the line consists of text, treat these as alternate group level lables
+                        try 
+                            groupLevels = vertcat(groupLevels,holdingLine);
+                        catch err
+                            % we only want to add new group level labels if
+                            % they can be appended to the existing
+                            % structure, otherwise ignore and move on.
+                        end
+                    end
+                catch err
+                    %grouping files may containt many trailing blank
+                    %spaces.  Since we want to allow for blank space
+                    %between the headers and the assignments,we can't just
+                    %break when a blank line is found.  This catches the
+                    %error generated when finding a "blank" line and
+                    %continues the loop
+                    %
+                end
+                    
+            end
+            fclose(fid);
+            obj.status = sprintf('GROUPING FILE %s PARSED!',inputs.FILE);
+            
+            obj.status = 'VALIDATING INPUT GROUPING...';                                                            
+            % do some validation steps
+            
+            % Some checks to see if group file was sensibly parsed
+            
+            if isempty(allIDS)
+                obj.status = sprintf('ERROR: No IDs were loaded from file: %s',inputs.FILE);
+                G.error = 1;
+                return;
+            end
+            
+            
+            % Make sure that an animal hasn't been assigned to more than
+            % 1 group
+            
+            u=unique(allIDS);
+            n=histc(allIDS,u);
+            B = u(n>1);
+            if ~isempty(B)
+               
+               fprintf('The following IDs were found in more than 1 group in the grouping file %s\n',inputs.FILE);
+               fprintf('%d\n',B);
+               fprintf('\n');
+               G.error = 1;
+               return;
+            end
+            
+            % Report any unassigned numbers
+            A = 1:numel(allIDS);
+            B = setdiff(A,allIDS);
+            
+            if ~isempty(B)
+               fprintf('NOTE: The following IDs were not found in the grouping file %s:\n',inputs.FILE);
+               fprintf('%d\n',B);
+               fprintf('\n');
+            end
+            obj.status = 'INPUTS VALID!';  
+            % Create a table
+            % [~,columnHeader,~] = fileparts(inputs.FILE);
+%             if t > 1
+%                 columnHeader = [columnHeader sprintf('_alt%d',t-1)];
+%             end
+
+            % Loop over levels
+            
+            for L = 1 : size(groupLevels,2)
+                
+                
+                newTable = table(assignmentArray{L}(:));
+                newTable.Properties.VariableNames = {'animal_id'};
+                % Loop over names and add to table
+                for N = 1 : size(groupLevels,1)
+                    
+                    
+                    % Main group variable name
+                    [~,columnHeader,~] = fileparts(inputs.FILE);
+                    % Alternate group level names
+                    if N > 1
+                        columnHeader = [columnHeader sprintf('_alt%d',N-1)];
+                    end
+                    columnHeader = ['grp_' columnHeader];
+                    newTable.(columnHeader) = repmat(groupLevels(N,L),height(newTable),1);
+                end
+                if L == 1
+                    fullTable = newTable;
+                else
+                    fullTable = vertcat(fullTable,newTable);
+                end
+            end
+            
+             G.dataTable = fullTable;
+             obj.status = sprintf('GROUPING FILE %s PARSED',inputs.FILE);
+        end
+        function T = loadTimingFile(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+          T = struct('error', 0,...
+                'dataTable', []);
+            
+            validLogical = [0 1];
+            try
+                %check inputs
+                p = inputParser;
+                p.addParameter('FILE', ...
+                    [],...
+                    @(x) ischar(x));
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s\n\n', upper(obj.current_function),err.message);
+                obj.help('loadTimingFile');
+                return;
+            end
+            
+            obj.status = sprintf('LOADING TIMING FILE %s...',inputs.FILE);
+            try
+                fid = fopen(inputs.FILE,'r');
+            catch err
+                obj.status = sprintf('ERROR: timing file could not be loaded: %s\n',inputs.FILE);
+                T.error = 1;
+                return;
+            end
+            
+            if fid == -1
+                obj.status = sprintf('ERROR: timing file could not be loaded: %s\n',inputs.FILE);
+                T.error = 1;
+                return;
+            end
+            
+            obj.status = sprintf('PARSING TIMING FILE %s...',inputs.FILE);
+         
+            try
+                T.dataTable = readtable(inputs.FILE);
+            catch
+                obj.status = sprintf('ERROR Parsing timing file %s',inputs.FILE);
+                T.error = 1;
+                return;
+            end
+            
+           
+            
+            % determine time coding in file
+            checkTime = 0;
+            needOffset = 0;
+            needDuration = 0;
+            if ismember('ONSET',upper( T.dataTable.Properties.VariableNames ))
+                %onset is recorded
+                if ismember('OFFSET',upper( T.dataTable.Properties.VariableNames ))
+                    % onset and offset is recorded
+                    if ismember('DURATION',upper( T.dataTable.Properties.VariableNames ))
+                        % onset, offset, and duration recorded
+                        % no additional parameters needed
+                    else
+                        % duration needed 
+                        needDuration = 1;
+                    end
+                else
+                    %offset needed
+                    if ismember('DURATION',upper( T.dataTable.Properties.VariableNames ))
+                        % onset, duration recorded
+                        % offset needed 
+                        needOffset = 1;
+                    else
+                        % only onset present, not enough time info --
+                        % check "time" field
+                        checkTime = 1;
+                    end
+                end
+            else
+                % onset not recorded, not enough time info --
+                % check "time" field
+                checkTime = 1;
+            end
+            
+            if checkTime
+                % For now we assume that by default "Time" indicates both the
+                % onset and offset of events.  Not an ideal way of representing
+                % time
+                
+                %first, split the time component based on "-"
+                tm = cellfun(@(x) strsplit(x,'-'),T.dataTable.Time,'UniformOutput',0);
+                %reshape into # Events x 2 array
+                tm = reshape([tm{:}], 2, numel(tm))';
+                %remove superfluous whitespace
+                tm = strtrim(tm);
+                tm = strrep(tm,' ','');
+                
+                T.dataTable.onset_date = tm(:,1);
+                T.dataTable.offset_date = tm(:,2);
+                T.dataTable.duration_sec =  seconds(duration(datetime(tm(:,2)) - datetime(tm(:,1))));                
+            
+            end
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Code this once timing is finalized
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            if needDuration
+            end
+            if needOffset
+            end
+                        
+            
+            
+            
+            
+            
+            
+            obj.status = sprintf('TIMING FILE %s PARSED',inputs.FILE);
+        end
+        function V = loadViewpointFile(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            V = struct('error', 0,...
+                'dataTable', []);
+            
+            validLogical = [0 1];
+            try
+                %check inputs
+                p = inputParser;
+                p.addParameter('FILE', ...
+                    [],...
+                    @(x) ischar(x));
+                p.parse(varargin{:});
+                inputs = p.Results;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+                obj.help('loadViewpointFile');
+                return;
+            end
+            
+            obj.status = sprintf('LOADING VIEWPOINT FILE %s...',inputs.FILE);
+%             try
+%                 fid = fopen(inputs.FILE,'r');
+%             catch err
+%                 obj.status = sprintf('ERROR: Viewpoint file could not be loaded: %s',inputs.FILE);
+%                 V.error = 1;
+%                 return;
+%             end
+%             
+%             if fid == -1
+%                 obj.status = sprintf('ERROR: Viewpoint file could not be loaded: %s',inputs.FILE);
+%                 V.error = 1;
+%                 return;
+%             end
+            obj.status = 'PARSING MAY TAKE SOME TIME...';
+            obj.status = sprintf('PARSING VIEWPOINT FILE %s...',inputs.FILE);
+            
+            try
+                V.dataTable = readtable(inputs.FILE);
+            catch
+                obj.status = sprintf('ERROR Parsing Viewpoint file %s',inputs.FILE);
+                V.error = 1;
+                return;
+            end
+            
+            obj.status = 'MAPPING ANIMAL LOCATIONS TO NUMERICAL...';
+            
+            V.dataTable.animal_id = cellfun(@(x) str2num(strrep(x,'w','')),V.dataTable.location);
+            
+            obj.status = 'REFORMATTING TIMESTAMP REPRESENTATIONS...';
+            % idiosyncratic format manipulations
+            V.dataTable.sttime = cellfun(@(x) datestr(x,'HH:MM:SS'),num2cell(V.dataTable.sttime),'UniformOutput',0);
+            
+            obj.status = sprintf('VIEWPOINT FILE %s PARSED',inputs.FILE);
+        end
+        function M = mergeDataFiles(obj,varargin)
+            % FUNCTION
+            %
+            % USAGE:
+            % obj.function()
+            %
+            % ------------------------------------------------------------
+            % REQUIRED ARGUMENTS:
+            % 'HANDLE_PARENT',parent
+            % 'KEY_ID',key_id)
+            %
+            % OPTIONAL ARGUMENTS:
+            %
+            % OUTPUTS:
+            %
+            % NOTES:
+            %
+            M = struct('error', 0,...
+                'dataTable', []);
+            
+            validLogical = [0 1];
+%             try
+%                 %check inputs
+%                 p = inputParser;
+%                 p.addParameter('FILE', ...
+%                     [],...
+%                     @(x) ischar(x));
+%                 p.parse(varargin{:});
+%                 inputs = p.Results;
+%             catch err
+%                 obj.status = sprintf('FUNCTION "%s" CALL ERROR: %s', upper(obj.current_function),err.message);
+%                 obj.help('mergeDataFiles');
+%                 return;
+%             end
+            
+            obj.status = sprintf('MERGING DATA...');
+            
+            % merge viewpoint and grouping -- easy
+            
+            % Reconcile group and viewpoint
+            % check whether animal ids sets are equivalent
+            vp_id = unique(obj.viewpointDataTable.animal_id);
+            g_id = unique(obj.groupDataTable.animal_id);
+            
+            invp_notgp = setdiff(vp_id,g_id);
+            ingp_notvp = setdiff(g_id,vp_id);
+            
+            tempGroupDataTable = obj.groupDataTable;
+            tempViewpointDataTable = obj.viewpointDataTable;
+            
+            if invp_notgp
+               obj.status = 'USER INPUT NEEDED!';
+               fprintf('The following animal ids are in the viewpoint data table but not the group table\n')
+               fprintf('%d\n',invp_notgp);
+               qstring = 'Proceed with analysis without these animals?';
+               choice = questdlg(qstring,'Continue analysis',...
+                   'Yes','No','No');
+               if strcmp(choice,'No')
+                  M.error = 1;
+                  obj.status = 'HALTING ANALYSIS';
+                  return;
+               end
+               
+               % remove animals for merge purposes...
+               tempViewpointDataTable(tempViewpointDataTable.animal_id == invp_notgp,:)= [];
+            end
+            
+            if ingp_notvp
+               obj.status = 'USER INPUT NEEDED!';
+               fprintf('The following animal ids are in the group data table but not the viewpoint table\n')
+               fprintf('%d\n',ingp_notvp);
+               qstring = 'Proceed with analysis without these animals?';
+               choice = questdlg(qstring,'Continue analysis',...
+                   'Yes','No','No');
+               if strcmp(choice,'No')
+                  M.error = 1;
+                  obj.status = 'HALTING ANALYSIS';
+                  return;
+               end
+               
+               % remove animals for merge purposes...
+               tempGroupDataTable(tempGroupDataTable.animal_id == ingp_notvp,:)= [];
+            end
+            
+            M.dataTable = join(tempViewpointDataTable,tempGroupDataTable,'Keys','animal_id');
+            
+            % merge w/timing -- hard
+            
+            % for every row in the merged data table,
+            vts=  datetime(M.dataTable.sttime,'Format','HH:mm:SSS');
+            eton = cellfun(@(x) datetime(x,'Format','HH:mm:SSS'),obj.timingDataTable.onset_date,'UniformOutput',0);
+            %bump offset down a bit because matlab's "isbetween" is
+            %inclusive
+            etof = cellfun(@(x) datetime(x,'Format','HH:mm:SSS')-milliseconds(1),obj.timingDataTable.offset_date,'UniformOutput',0);
+            
+            
+            %columns to add to merged table from event timing table
+            unNeededCols= {'',...
+                'Time',...
+                'onset_date',...
+                'offset_date',...
+                'duration_sec'};
+            neededColumns = setdiff(obj.timingDataTable.Properties.VariableNames, unNeededCols);
+            
+            % add columns and set to a default value
+            for c = 1 :numel(neededColumns)
+               % create defaults
+               M.dataTable.(neededColumns{c}) = repmat({'unspecified'},height(M.dataTable),1);
+            end
+            
+            %enter timing labels
+            for e = 1:numel(eton)
+                rows = find(isbetween(vts,eton{e},etof{e}));
+                for c = 1 :numel(neededColumns)
+                    M.dataTable.(neededColumns{c})(rows) = obj.timingDataTable.(neededColumns{c})(e);
+                end
+            end
+            obj.status = sprintf('MERGING DONE!');
+            
+            mdf = fullfile(obj.save_location,sprintf('mergedData_%s.xlsx',datetime('now','Format','yMMddHHmmSS')));
+            obj.status = sprintf('WRITING MERGE DATA FILE %s...',mdf);
+            try 
+                writetable(M.dataTable,mdf);
+                obj.mergedDataTable = M.dataTable;
+                obj.mergedDataFile = mdf;
+            catch err
+                obj.status = sprintf('FUNCTION "%s" MERGE DATA TABLE WRITE ERROR: %s', upper(obj.current_function),err.message);
+                M.error = 1;
+                return;
+            end
+            
+            obj.status = sprintf('WRITE DONE!');
+            
+        end
+    end
+    methods (Static = true, Access = protected) 
+        function    caller_name = current_function( inarg )
+            %
+            %   See also: mfilename
+            dbk = dbstack( 1 );
+            if isempty( dbk )
+                str = 'base';
+            else
+                str = dbk(1).name;
+            end
+            ixf = find( str == '.', 1, 'first' );
+            if isempty( ixf ) || ( nargin==1 && strcmp( inarg, '-full' ) )
+                caller_name = str;
+            else
+                caller_name = str( ixf+1 : end );
+            end
+        end
+        function    initArt(v)
+            
+            fprintf('   ,-----.\n  /____  /\n /     \\/ _\n/ O     \\/ |\n>          |\n\\ <)    /\\_|\n \\_____/\\    \n  \\      \\   \n   `-----''\n\n');
+            
+            mfile = mfilename('fullpath');
+            mfile = fileparts(mfile);
+%             sl = strfind(mfile,filesep);
+%             mfile = mfile(1:sl(end-1));
+            
+%             obj.meta_code_locations = {fullfile(mfile, '\parentClass'),...
+%                 fullfile(mfile,'\subclasses'),...
+%                 fullfile(mfile,'\subclasses\individualBehavioralClasses')};
+            
+            % count lines of code  -- mostly for fun
+            j = findFiles(mfile, '\.m');
+%             j = [];
+%             for i = 1 :numel(obj.meta_code_locations)
+%                 j = [j findFiles(obj.meta_code_locations{i}, '.m')];
+%                 
+%             end
+            h = cellfun(@(x) ~isempty(strfind(x,'arch')),j,'UniformOutput',0);
+            h = [h{:}];
+            j(h) = [];
+            lines = 0;
+            for i = 1 :numel(j)
+                lines = lines + sloc(j{i});
+            end
+            
+            fprintf('ANIMAL BEHAVIOR PARSER VERSION %s\n',v);
+            fprintf('8/22/2016 -Brent Vander Wyk\n');
+            fprintf('# m-files\t\t%d\n',numel(j));
+            fprintf('# lines\t\t%d\n',lines);
+            
+        end
+    end
+end
+
+
+
+% % FUNCTION
+% %
+% % USAGE:
+% % obj.function()
+% %
+% % ------------------------------------------------------------
+% % REQUIRED ARGUMENTS:
+% % 'HANDLE_PARENT',parent
+% % 'KEY_ID',key_id)
+% %
+% % OPTIONAL ARGUMENTS:
+% %
+% % OUTPUTS:
+% %
+% % NOTES:
+% %
+%
+% validLogical = [0 1];
+% try
+%     %check inputs
+%     p = inputParser;
+%     p.addParameter('VERBOSE', ...
+%         1,...
+%         @(x) ismember(x,validLogical));
+%     p.parse(varargin{:});
+%     inputs = p.Results;
+% catch err
+%     fprintf('\nERROR: %s\n\n', err.message);
+%     obj.help('function');
+%     return;
+% end

@@ -1,0 +1,47 @@
+function replaceStartleGeno(varargin)
+p = inputParser;
+p.addParameter('data_path','/gpfs/ysm/project/hoffman/ejh22/bioinfo/startle/data',@isfolder);
+p.addParameter('geno_path','/gpfs/ysm/project/hoffman/ejh22/bioinfo/misc/corrected_genotype_10072019/VSR',@isfolder);
+p.addParameter('rm',true);
+p.addParameter('dryrun',true);
+p.parse(varargin{:});
+inputs = p.Results;
+
+d = dir(inputs.geno_path);
+d(cellfun(@(x) startsWith(x,'.'),{d.name})) = [];
+for i=1:numel(d)
+    gene = d(i).name;
+    genotype = dir(fullfile(d(i).folder,d(i).name,'*.txt'));
+    fprintf('%s\n',gene);
+    for j=1:numel(genotype)
+        fprintf('\t%s\n',genotype(j).name);
+        % find data folder(s)
+        plate = strsplit(genotype(j).name,'geno');
+        plate = plate{1};
+        data = dir(fullfile(inputs.data_path,gene,[plate '*']));
+        data(~[data.isdir]) = [];
+        for k=1:numel(data)
+            fprintf('\t\t%s\n',data(k).name);
+            % remove existing
+            rm = dir(fullfile(data(k).folder,data(k).name,'*genotype.txt'));
+            if ~isempty(rm) && inputs.rm
+                for l=1:numel(rm)
+                    fprintf('\t\t\tdeleting\t%s\n',rm(l).name);
+                    if ~inputs.dryrun
+                        delete(fullfile(rm(l).folder,rm(l).name));
+                    else
+                        fprintf('\b\t(dryrun)\n');
+                    end
+                end
+            end
+            % copy
+            fprintf('\t\t\tcopying\t\t%s\n',genotype(j).name);
+            if ~inputs.dryrun
+                copyfile(fullfile(genotype(j).folder,genotype(j).name),fullfile(data(k).folder,data(k).name));
+            else
+               fprintf('\b\t(dryrun)\n'); 
+            end
+        end
+    end
+end
+end
