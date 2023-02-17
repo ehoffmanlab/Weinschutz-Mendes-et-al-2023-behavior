@@ -1,23 +1,19 @@
 % Parameters
 
-projectName = 'combine';
-saveLocation = 'C:\Users\bv8\Desktop\analysis\combine\';
+projectName = 'Name';
+saveLocation = 'C:\...';
 
 acclimationTiming = 	[0	4800];
 baselineTiming =	[4800	5400];
 eventTiming = 	[0	1	29];
 
 
-groupingFile = {'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\161012_0B\161012_0Bgenotype.txt',...
-                'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\161212_0A\161212_0Agenotype.txt',...
-                'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\170118_0A\170118_0Agenotype.txt'};
+groupingFile = {'C:\ ... '};
             
-viewPointFile = {'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\161012_0B\161012_0B.xlsx',...
-    'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\161212_0A\161212_0A.xlsx',...
-    'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\170118_0A\170118_0A.xlsx'};
+viewPointFile = {'C:\ ...'};
 
 
-timingFile = 'C:\Users\bv8\Desktop\analysis\combine\Chd8 del5 Lights off\161012_0B\161012_0BTiming.txt';
+timingFile = 'C:\ ... ';
 
 dv = 'actinteg';
 groupName = 'grp_GroupLabel_1';
