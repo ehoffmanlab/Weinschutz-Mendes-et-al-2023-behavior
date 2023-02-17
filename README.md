@@ -93,7 +93,7 @@ viewPointFile = {'/Users/...'};
 
 timingFile = '/Users/...';
 
-1. Run “**ABA\_CTRL.m” in the “animalBehavioranalysis” folder.**
+3. Run “**ABA\_CTRL.m” in the “animalBehavioranalysis” folder.**
 ## **Outputs**
 1. Data object .m file
    1. The Data object is a complex data type called an “object.” 
