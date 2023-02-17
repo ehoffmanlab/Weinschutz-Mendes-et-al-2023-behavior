@@ -105,3 +105,6 @@ timingFile = '/Users/...';
       1. The program writes this aggregated data to a file so that researchers have the option of examining the raw data in their preferred statistical analysis software. 
    1. Time series graphs
    1. One-way ANOVA analyses and graphs
+
+
+[![DOI](https://zenodo.org/badge/601389493.svg)](https://zenodo.org/badge/latestdoi/601389493)
