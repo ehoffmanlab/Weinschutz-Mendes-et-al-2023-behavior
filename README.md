@@ -33,7 +33,7 @@ o	The fish IDs correspond to the location on a 96-well plate, where the rows are
 
 Genotype 1	Genotype 2	Genotype 3	Genotype 4	Genotype 5	etc...
 HOM:HOM	HOM:HET	HOM:WT	HET:HOM	HET:HET	
-5	  36	14	29	22	
+5	36	14	29	22	
 18	54	27	33	24	
 91	81	80	77	40	
 x	x	x	x	x	
