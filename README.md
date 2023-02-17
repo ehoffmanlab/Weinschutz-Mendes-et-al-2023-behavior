@@ -100,8 +100,5 @@ ii.	The program writes this aggregated data to a file so that researchers have t
 b.	Time series graphs
 c.	One-way graphs folder
 
-![image](https://user-images.githubusercontent.com/71892256/219539304-cbea8d65-764c-4a59-bda8-a00137daf701.png)
-
-
 [![DOI](https://zenodo.org/badge/601389493.svg)](https://zenodo.org/badge/latestdoi/601389493)
 
