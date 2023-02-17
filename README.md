@@ -79,7 +79,7 @@ For **VSR-ON**, the timing file is labeled as “**lightson\_Timing.txt**” and
 
 projectName = 'NAME';
 
-`   	`saveLocation = '/Users/...';
+saveLocation = '/Users/...';
 
 
 
